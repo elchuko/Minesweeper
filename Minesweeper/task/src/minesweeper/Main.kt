@@ -8,11 +8,12 @@ fun main() {
     while (true) {
         print("Set/delete mines marks (x and y coordinates): ")
         val input = readLine()!!.split(" ")
-        if (input[0] == "show") {
-            field.showMines()
-            continue
+        val result = field.interact(input[1].toInt(), input[0].toInt(), input[2])
+        when (result) {
+            is Boolean -> if (!result) continue // if it fails, then continue without printing
+            else -> ""
         }
-        if (!field.markCoordinates(input[1].toInt(), input[0].toInt())) continue
+
         field.printField()
         if (field.finished()) break
     }
