@@ -2,17 +2,16 @@ package minesweeper
 
 import kotlin.random.Random
 
-class Grid(length: Int = 5, width: Int = 5, var mines: Int = 5) {
+class Grid(length: Int = 9, width: Int = 9, var mines: Int = 5) {
 
 
-    var status = Status.PLAYING.status
+    private var status = Status.PLAYING
     private val extLength = length + 2
     private val extWidth = width + 2
     private val field: MutableList<MutableList<Cell>> = MutableList(extLength) { MutableList(extWidth) { Cell(it) } }
     private val minesPosition = mutableListOf<Int>()
     private val listOfMines = mutableListOf<Cell>()
     private val listOfMarks = mutableListOf<Cell>()
-    private val listOfFree = mutableListOf<Cell>()
     private val alwaysClear = mutableListOf<Int>()
 
     init {
@@ -36,9 +35,8 @@ class Grid(length: Int = 5, width: Int = 5, var mines: Int = 5) {
         calculateAdjacency()
     }
 
-    fun finished(): Boolean {
-        // Falta agregar que si se exploran todas las celdas vacias, tmb se acaba el juego
-        return checkAllMinesMarked() && checkMarkAreMines()
+    fun finished(): Status {
+        return status
     }
 
     fun interact(row: Int, column: Int, command: String): Any {
@@ -57,14 +55,23 @@ class Grid(length: Int = 5, width: Int = 5, var mines: Int = 5) {
 
     private fun explore(row: Int, column: Int) {
         when {
-            field[row][column].isMine() -> listOfMines.forEach { it.displayValue() }
+            field[row][column].isMine() -> {
+                listOfMines.forEach { it.displayValue() }
+                status = Status.FAIL
+                return
+            }
             field[row][column].isAdjacentNotZero() -> field[row][column].displayValue()
             else -> floodFill(row, column)
         }
+        checkAllFreeSpaces() // TODO define where to implement this better
     }
 
     private fun markAsMine(row: Int, column: Int): Boolean {
-        return field[row][column].mark()
+        if (field[row][column].mark()) {
+            if (checkAllMinesMarked() && checkMarkAreMines()) status = Status.WIN
+            return true
+        }
+        return false
     }
 
     private fun floodFill(row: Int, column: Int) {
@@ -80,7 +87,7 @@ class Grid(length: Int = 5, width: Int = 5, var mines: Int = 5) {
         floodFill(row, column - 1) //go left
     }
 
-    private fun checkMarkAreMines(): Boolean {
+    private fun checkMarkAreMines(): Boolean { //Cuando se hace una marca
         for (cell in listOfMarks) {
             if (!cell.isMine()) return false
         }
@@ -88,7 +95,7 @@ class Grid(length: Int = 5, width: Int = 5, var mines: Int = 5) {
     }
 
 
-    private fun checkAllMinesMarked(): Boolean {
+    private fun checkAllMinesMarked(): Boolean { //Cuando se hace una marca
         for (cell in listOfMines) {
             if (!cell.marked) {
                 return false
@@ -97,14 +104,26 @@ class Grid(length: Int = 5, width: Int = 5, var mines: Int = 5) {
         return true
     }
 
-    private fun checkAllFreeSpaces(): Boolean { // TODO
+    private fun checkAllFreeSpaces() { // TODO
         var allCells = field.flatten()
-        for (cell in allCells) {
-            if (listOfMines.contains(cell)) continue
-            if (cell.cellValue == Values.FIELD.char) return false
+        allCells.forEachIndexed ici@ { index, cell ->
+            if (listOfMines.contains(cell) || alwaysClear.contains(index)) return@ici
+            if (!cell.displayed) { //siempre es negativo
+                status = Status.PLAYING
+                return
+            }
         }
-        status = Status.WIN.status
-        return true
+        /*
+        for (cell in allCells) {
+            if (listOfMines.contains(cell) || alwaysClear.contains(cell.)) continue
+            if (!cell.displayed) { //siempre es negativo
+                status = Status.PLAYING
+                return
+            }
+            //if (cell.cellValue == Values.FIELD.char) return false
+        }
+         */
+        status = Status.WIN
     }
 
     private fun calculateAlwaysClearCells() {
@@ -116,6 +135,7 @@ class Grid(length: Int = 5, width: Int = 5, var mines: Int = 5) {
                 i in ((extLength - 1) * extWidth)..( (extLength * extWidth) - 1 ) -> alwaysClear.add(i) // last row
             }
         }
+
     }
 
     private fun calculateAdjacency() {
